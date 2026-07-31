@@ -185,6 +185,16 @@ class ZipValidationService
             $zip->close();
         }
 
+        // Auto-unwrap single top-level directory if index.html is not at root (e.g. GitHub zip archives)
+        $this->autoUnwrapTopLevelFolder($dest);
+
+        if (!file_exists($dest . DIRECTORY_SEPARATOR . 'index.html')) {
+            throw new RuntimeException(
+                'Your repository/ZIP archive must contain an "index.html" file at root. ' .
+                'This is required as the entry point for your static website.'
+            );
+        }
+
         // Calculate actual extracted size (sum all file bytes on disk)
         $actualBytes = $this->calculateDirSize($dest);
         $sizeKb      = (int) ceil($actualBytes / 1024);
@@ -196,6 +206,34 @@ class ZipValidationService
             'fileCount'   => $fileCount,
             'totalSizeKb' => $sizeKb,
         ];
+    }
+
+    /**
+     * Auto-unwrap single top-level wrapper directory (e.g. GitHub archive `reponame-main/`).
+     */
+    private function autoUnwrapTopLevelFolder(string $dest): void
+    {
+        $indexPath = $dest . DIRECTORY_SEPARATOR . 'index.html';
+        if (file_exists($indexPath)) {
+            return;
+        }
+
+        $items = array_diff(scandir($dest), ['.', '..']);
+        if (count($items) === 1) {
+            $singleItem = current($items);
+            $subDirPath = $dest . DIRECTORY_SEPARATOR . $singleItem;
+
+            if (is_dir($subDirPath) && file_exists($subDirPath . DIRECTORY_SEPARATOR . 'index.html')) {
+                $subItems = array_diff(scandir($subDirPath), ['.', '..']);
+                foreach ($subItems as $subItem) {
+                    rename(
+                        $subDirPath . DIRECTORY_SEPARATOR . $subItem,
+                        $dest . DIRECTORY_SEPARATOR . $subItem
+                    );
+                }
+                @rmdir($subDirPath);
+            }
+        }
     }
 
     /**

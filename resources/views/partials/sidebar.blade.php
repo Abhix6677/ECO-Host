@@ -25,14 +25,14 @@
             </a>
 
             <a href="{{ Route::has('websites.index') ? route('websites.index') : '#' }}" 
-               class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 {{ request()->routeIs('websites.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-gray-400 hover:text-white hover:bg-hostinger-cardHover' }}">
+               class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 {{ (request()->routeIs('websites.*') && !request()->routeIs('websites.create')) ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-gray-400 hover:text-white hover:bg-hostinger-cardHover' }}">
                 <i data-lucide="globe" class="w-5 h-5"></i>
                 <span>My Websites</span>
             </a>
 
             <a href="{{ Route::has('websites.create') ? route('websites.create') : '#' }}" 
-               class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-400 hover:text-white hover:bg-hostinger-cardHover">
-                <i data-lucide="upload-cloud" class="w-5 h-5 text-indigo-400"></i>
+               class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 {{ request()->routeIs('websites.create') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-gray-400 hover:text-white hover:bg-hostinger-cardHover' }}">
+                <i data-lucide="upload-cloud" class="w-5 h-5 {{ request()->routeIs('websites.create') ? 'text-white' : 'text-indigo-400' }}"></i>
                 <span>Upload Website</span>
             </a>
 
@@ -42,7 +42,8 @@
                 <span>Deployments</span>
             </a>
 
-            <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 hover:text-white hover:bg-hostinger-cardHover transition-all duration-200">
+            <a href="{{ route('settings.index') }}" 
+               class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 {{ request()->routeIs('settings.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-gray-400 hover:text-white hover:bg-hostinger-cardHover' }}">
                 <i data-lucide="settings" class="w-5 h-5"></i>
                 <span>Settings</span>
             </a>

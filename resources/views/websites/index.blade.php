@@ -26,7 +26,7 @@
             </div>
             <h3 class="text-xl font-bold text-white mb-2">No Websites Yet</h3>
             <p class="text-gray-400 text-sm max-w-sm mx-auto mb-6">
-                Upload your first static website ZIP to get started. EcoHost will validate, extract, and host it instantly on CoCalc.
+                Upload your first static website ZIP to get started. EcoHost will validate, extract, and host it instantly on EcoHost Cloud.
             </p>
             <a href="{{ route('websites.create') }}"
                class="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition transform active:scale-95">

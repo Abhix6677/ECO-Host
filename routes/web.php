@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeploymentController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WebsiteController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,4 +34,9 @@ Route::middleware('auth')->group(function () {
     // Deployment Routes
     Route::post('/websites/{website}/deploy', [DeploymentController::class, 'deploy'])->name('websites.deploy');
     Route::get('/deployments', [DeploymentController::class, 'index'])->name('deployments.index');
+
+    // Settings Routes
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
 });

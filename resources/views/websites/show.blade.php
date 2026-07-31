@@ -6,7 +6,7 @@
 @php
     $latestLog = $deployments->isNotEmpty() ? $deployments->first()->log_output : 'No deployment logs recorded yet.';
     if (!empty($visitorLogs)) {
-        $latestLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (COCALC UBUNTU) ---\n" . implode("\n", $visitorLogs);
+        $latestLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (ECOHOST CLOUD) ---\n" . implode("\n", $visitorLogs);
     }
 @endphp
 
@@ -161,7 +161,7 @@
     @endif
 
     <!-- Big Screen Live Terminal Console (Auto-Syncing Deployment & Visitor HTTP Logs) -->
-    <div x-show="showLiveConsole" x-collapse class="space-y-3">
+    <div x-show="showLiveConsole" x-collapse x-ref="terminalBox" class="space-y-3">
         <div class="bg-black/90 border border-indigo-500/40 rounded-2xl overflow-hidden shadow-2xl">
             
             <!-- Terminal Window Titlebar -->
@@ -174,14 +174,14 @@
                     </div>
                     <div class="flex items-center space-x-2 text-xs font-mono text-indigo-300">
                         <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
-                        <span class="font-bold">cocalc-ubuntu-receiver ~ deployment_&amp;_traffic_logs.log</span>
+                        <span class="font-bold">ecohost-cloud-engine ~ deployment_&amp;_traffic_logs.log</span>
                     </div>
                 </div>
 
                 <div class="flex items-center space-x-3">
                     <!-- Live Sync Indicator -->
                     <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[11px] font-mono border border-emerald-500/20">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" :class="isPolling ? 'animate-pulse' : 'bg-gray-500'"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" :class="isPolling ? 'animate-pulse' : 'bg-amber-400'"></span>
                         <span x-text="isPolling ? 'Live Auto-Sync (3s)' : 'Sync Paused'"></span>
                     </span>
 
@@ -189,7 +189,7 @@
                     <button @click="togglePolling()"
                             class="px-2.5 py-1 text-xs font-mono text-gray-400 hover:text-white bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg transition flex items-center space-x-1">
                         <i data-lucide="refresh-cw" class="w-3 h-3" :class="isFetching ? 'animate-spin text-indigo-400' : ''"></i>
-                        <span x-text="isPolling ? 'Pause Sync' : 'Resume Sync'"></span>
+                        <span x-text="isPolling ? 'Pause Sync' : 'Resume Live Sync'"></span>
                     </button>
 
                     <!-- Refresh Now Button -->
@@ -222,8 +222,8 @@
             </div>
             
             <div class="bg-slate-900/60 px-4 py-2 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono text-gray-400">
-                <span>CoCalc Ubuntu Realtime Stream</span>
-                <span>Last Updated: <span class="text-indigo-300 font-bold" x-text="lastUpdated"></span></span>
+                <span>EcoHost Realtime Stream</span>
+                <span>Log Mode: <span class="text-indigo-300 font-bold" x-text="lastUpdated"></span></span>
             </div>
         </div>
     </div>
@@ -256,12 +256,12 @@
                                 <th class="py-4 px-4">Status</th>
                                 <th class="py-4 px-4">Target URL</th>
                                 <th class="py-4 px-4">Executed</th>
-                                <th class="py-4 px-6 text-right">Terminal Logs</th>
+                                <th class="py-4 px-6 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-hostinger-border text-sm">
                             @foreach ($deployments as $dep)
-                                <tr class="hover:bg-hostinger-cardHover/40 transition" x-data="{ showLog: false }">
+                                <tr class="hover:bg-hostinger-cardHover/40 transition">
                                     <td class="py-4 px-6 font-mono text-xs text-gray-300">
                                         {{ $dep->uuid }}
                                     </td>
@@ -301,23 +301,14 @@
                                     </td>
                                     <td class="py-4 px-6 text-right">
                                         @if ($dep->log_output)
-                                            <button @click="showLog = !showLog"
-                                                    class="text-xs font-bold text-gray-300 hover:text-white bg-hostinger-dark border border-hostinger-border hover:border-gray-500 px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ml-auto">
+                                            <button @click="viewRunLog(@js($dep->log_output))"
+                                                    class="text-xs font-bold text-gray-300 hover:text-white bg-hostinger-dark border border-hostinger-border hover:border-indigo-500 px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ml-auto">
                                                 <i data-lucide="terminal" class="w-3.5 h-3.5 text-indigo-400"></i>
-                                                <span x-text="showLog ? 'Hide Logs' : 'View Logs'"></span>
+                                                <span>Inspect Run Logs</span>
                                             </button>
                                         @endif
                                     </td>
                                 </tr>
-
-                                {{-- Terminal Log Expansion --}}
-                                @if ($dep->log_output)
-                                    <tr x-show="showLog" x-collapse>
-                                        <td colspan="5" class="px-6 pb-4">
-                                            <div class="bg-black/80 border border-hostinger-border rounded-xl p-4 font-mono text-xs text-emerald-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto shadow-inner">{{ $dep->log_output }}</div>
-                                        </td>
-                                    </tr>
-                                @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -337,7 +328,7 @@
             <div class="text-center">
                 <h3 class="text-lg font-bold text-white">Delete Website?</h3>
                 <p class="text-xs text-gray-400 mt-1">
-                    <strong class="text-white">{{ $website->name }}</strong> and all extracted files will be permanently deleted from local and CoCalc storage. This action cannot be undone.
+                    <strong class="text-white">{{ $website->name }}</strong> and all extracted files will be permanently deleted from EcoHost storage. This action cannot be undone.
                 </p>
             </div>
             <div class="flex gap-3 pt-2">
@@ -366,7 +357,7 @@ function terminalApp() {
         showLiveConsole: true,
         isPolling: true,
         isFetching: false,
-        lastUpdated: 'Just now',
+        lastUpdated: 'Live Stream',
         copiedLog: false,
         logOutput: @json($latestLog),
         pollTimer: null,
@@ -386,7 +377,7 @@ function terminalApp() {
                 const data = await res.json();
                 if (data.status === 'success' && data.log_output) {
                     this.logOutput = data.log_output;
-                    this.lastUpdated = data.updated_at;
+                    this.lastUpdated = 'Live Stream (' + data.updated_at + ')';
                 }
             } catch (e) {
                 console.error('Failed to poll logs:', e);
@@ -397,6 +388,16 @@ function terminalApp() {
 
         togglePolling() {
             this.isPolling = !this.isPolling;
+        },
+
+        viewRunLog(runLogText) {
+            this.logOutput = runLogText;
+            this.showLiveConsole = true;
+            this.isPolling = false; // Pause auto-sync so user can inspect specific past run log
+            this.lastUpdated = 'Inspecting Past Run';
+            this.$nextTick(() => {
+                this.$refs.terminalBox?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
         },
 
         copyLogs() {

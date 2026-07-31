@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreWebsiteRequest;
 use App\Models\Website;
 use App\Services\CoCalcReceiverService;
+use App\Services\GitHubImportService;
 use App\Services\StorageService;
 use App\Services\ZipValidationService;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class WebsiteController extends Controller
         private ZipValidationService $zipService,
         private StorageService $storageService,
         private CoCalcReceiverService $cocalcService,
+        private GitHubImportService $githubService,
     ) {}
 
     /**
@@ -34,7 +36,7 @@ class WebsiteController extends Controller
     }
 
     /**
-     * Show the upload form.
+     * Show the upload & GitHub import form.
      */
     public function create()
     {
@@ -57,7 +59,7 @@ class WebsiteController extends Controller
     }
 
     /**
-     * Endpoint to fetch live deployment & CoCalc visitor HTTP logs via JSON for real-time polling.
+     * Endpoint to fetch live deployment & EcoHost visitor HTTP logs via JSON for real-time polling.
      */
     public function logs(Website $website)
     {
@@ -68,12 +70,12 @@ class WebsiteController extends Controller
         $latestDeployment = $website->deployments()->latest()->first();
         $deploymentLog = $latestDeployment ? $latestDeployment->log_output : '';
 
-        // Fetch live visitor HTTP hits from CoCalc receiver
+        // Fetch live visitor HTTP hits from receiver
         $visitorLogs = $this->cocalcService->getSiteVisitorLogs($website);
 
         $combinedLog = $deploymentLog;
         if (!empty($visitorLogs)) {
-            $combinedLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (COCALC UBUNTU) ---\n";
+            $combinedLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (ECOHOST CLOUD) ---\n";
             $combinedLog .= implode("\n", $visitorLogs);
         }
 
@@ -88,11 +90,11 @@ class WebsiteController extends Controller
     }
 
     /**
-     * Handle ZIP upload, validate, extract and store metadata.
+     * Handle ZIP upload OR GitHub repo import, validate, extract and store metadata.
      */
     public function store(StoreWebsiteRequest $request)
     {
-        $user    = Auth::user();
+        $user     = Auth::user();
         $siteUuid = (string) Str::uuid();
 
         // Build site name slug (unique per user: site_{uuid_short})
@@ -102,10 +104,23 @@ class WebsiteController extends Controller
         $storagePath = $this->storageService->getSiteStoragePath($user->id, $siteUuid);
         $destAbsPath = $this->storageService->absolutePath($storagePath);
 
+        $tempUploadedZip = null;
+
         try {
+            // --- Determine Source: GitHub Repo URL OR File Upload ----------------------
+            if ($request->filled('github_url')) {
+                $importRes = $this->githubService->downloadGitHubRepoZip($request->input('github_url'));
+                $zipFile          = $importRes['file'];
+                $originalFilename = "github:{$importRes['owner']}/{$importRes['repo']} ({$importRes['branch']})";
+                $tempUploadedZip  = $zipFile->getRealPath();
+            } else {
+                $zipFile          = $request->file('zip_file');
+                $originalFilename = $zipFile->getClientOriginalName();
+            }
+
             // --- Validate ZIP & Extract -----------------------------------------------
             $result = $this->zipService->validateAndExtract(
-                $request->file('zip_file'),
+                $zipFile,
                 $destAbsPath
             );
 
@@ -115,7 +130,7 @@ class WebsiteController extends Controller
                 'user_id'           => $user->id,
                 'name'              => $request->input('name'),
                 'slug'              => $slug,
-                'original_filename' => $request->file('zip_file')->getClientOriginalName(),
+                'original_filename' => $originalFilename,
                 'storage_path'      => $storagePath,
                 'public_path'       => null,
                 'size_kb'           => $result['totalSizeKb'],
@@ -123,56 +138,58 @@ class WebsiteController extends Controller
                 'live_url'          => null,
             ]);
 
+            // Clean up temporary downloaded file if GitHub import was used
+            if ($tempUploadedZip && file_exists($tempUploadedZip)) {
+                @unlink($tempUploadedZip);
+            }
+
+            $sourceLabel = $request->filled('github_url') ? 'imported from GitHub' : 'uploaded';
+
             return redirect()
                 ->route('websites.index')
-                ->with('success', "✅ \"{$website->name}\" uploaded successfully with {$result['fileCount']} files ({$result['totalSizeKb']} KB). Ready to deploy!");
+                ->with('success', "✅ \"{$website->name}\" {$sourceLabel} successfully with {$result['fileCount']} files ({$result['totalSizeKb']} KB). Ready to deploy!");
 
         } catch (RuntimeException $e) {
-            // Clean up any partially extracted files if the operation failed
+            // Clean up any partially extracted files or downloaded zip if operation failed
             if (is_dir($destAbsPath)) {
                 $this->storageService->deleteDirectory($destAbsPath);
+            }
+            if ($tempUploadedZip && file_exists($tempUploadedZip)) {
+                @unlink($tempUploadedZip);
             }
 
             return back()
                 ->withInput()
-                ->with('error', '❌ Upload failed: ' . $e->getMessage());
+                ->with('error', '❌ Import failed: ' . $e->getMessage());
         }
     }
 
     /**
-     * Delete a website: remove DB record & all associated local/CoCalc storage files.
+     * Delete a website: remove DB record & all associated remote storage files.
      */
     public function destroy(Website $website)
     {
-        // Authorize: only the owner can delete
         if ($website->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
         $siteName = $website->name;
 
-        // Always attempt CoCalc remote file deletion (non-fatal if receiver is offline)
+        // Always attempt remote file deletion (non-fatal if receiver is offline)
         $this->cocalcService->deleteFromCoCalc($website);
 
-        // Delete extracted storage files locally
-        $absStoragePath = $this->storageService->absolutePath($website->storage_path);
-        if (is_dir($absStoragePath)) {
-            $this->storageService->deleteDirectory($absStoragePath);
-        }
-
-        // Delete deployed public files locally (only if it's a local path, not a CoCalc path)
-        if ($website->public_path && !str_starts_with($website->public_path, 'cocalc://')) {
-            $absPublicPath = $this->storageService->absolutePath($website->public_path);
-            if (is_dir($absPublicPath)) {
-                $this->storageService->deleteDirectory($absPublicPath);
+        // Delete local source directory if exists
+        if ($website->storage_path) {
+            $absStoragePath = $this->storageService->absolutePath($website->storage_path);
+            if (is_dir($absStoragePath)) {
+                $this->storageService->deleteDirectory($absStoragePath);
             }
         }
 
-        // Cascade deletes deployments due to DB foreign key constraint
         $website->delete();
 
         return redirect()
             ->route('websites.index')
-            ->with('success', "🗑️ \"{$siteName}\" and all associated files have been permanently deleted.");
+            ->with('success', "🗑️ \"{$siteName}\" was successfully deleted.");
     }
 }

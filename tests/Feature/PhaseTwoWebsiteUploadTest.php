@@ -181,6 +181,31 @@ class PhaseTwoWebsiteUploadTest extends TestCase
         $response->assertDontSee('UserA Exclusive Site');
     }
 
+    public function test_github_repo_import_success(): void
+    {
+        $user = User::factory()->create();
+        $zipFile = $this->createValidZip();
+
+        \Illuminate\Support\Facades\Http::fake([
+            'https://github.com/Abhix6677/my-portfolio/archive/refs/heads/main.zip' => \Illuminate\Support\Facades\Http::response(
+                file_get_contents($zipFile->getRealPath()),
+                200
+            ),
+        ]);
+
+        $response = $this->actingAs($user)->post('/websites', [
+            'name'        => 'GitHub Portfolio',
+            'source_type' => 'github',
+            'github_url'  => 'https://github.com/Abhix6677/my-portfolio',
+        ]);
+
+        $response->assertRedirect('/websites');
+        $this->assertDatabaseHas('websites', [
+            'user_id' => $user->id,
+            'name'    => 'GitHub Portfolio',
+        ]);
+    }
+
     protected function tearDown(): void
     {
         $storageBase = storage_path('app/websites');

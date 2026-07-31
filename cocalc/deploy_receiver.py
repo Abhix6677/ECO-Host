@@ -285,8 +285,20 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             self._err(500, f"Extraction error: {exc}")
             return
 
+        # Auto-unwrap single top-level directory if index.html is not at root (e.g. GitHub archive `reponame-main/`)
+        for target_dir in (user_dir, public_dir):
+            if not (target_dir / "index.html").exists():
+                items = [item for item in target_dir.iterdir()]
+                if len(items) == 1 and items[0].is_dir():
+                    single_sub = items[0]
+                    if (single_sub / "index.html").exists():
+                        log.info("Auto-unwrapping top-level folder in %s: %s", target_dir.name, single_sub.name)
+                        for child in single_sub.iterdir():
+                            shutil.move(str(child), str(target_dir / child.name))
+                        shutil.rmtree(single_sub)
+
         # Validate index.html at root of public_dir
-        if not has_index and not (public_dir / "index.html").exists():
+        if not (public_dir / "index.html").exists():
             shutil.rmtree(user_dir, ignore_errors=True)
             shutil.rmtree(public_dir, ignore_errors=True)
             self._err(422, "ZIP does not contain index.html at the root level.")

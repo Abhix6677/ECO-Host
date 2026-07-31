@@ -41,7 +41,7 @@ class DeploymentService
         try {
             $log = [];
             $log[] = '[' . now()->format('H:i:s') . '] Deployment started: ' . $website->name;
-            $log[] = '[' . now()->format('H:i:s') . '] Target: CoCalc Ubuntu Container';
+            $log[] = '[' . now()->format('H:i:s') . '] Target: EcoHost Cloud Engine';
             $log[] = '[' . now()->format('H:i:s') . '] Receiver: ' . config('services.cocalc.receiver_url');
 
             // ----------------------------------------------------------------
@@ -53,12 +53,12 @@ class DeploymentService
 
             if ($hasLocalFiles) {
                 $log[] = '[' . now()->format('H:i:s') . '] Source files verified locally.';
-                $log[] = '[' . now()->format('H:i:s') . '] Packaging ZIP and sending to CoCalc Ubuntu...';
+                $log[] = '[' . now()->format('H:i:s') . '] Packaging ZIP and deploying to EcoHost Cloud...';
 
                 $cocalcResult = $this->cocalcService->deployToCoCalc($website);
 
             } else if ($hasCoCalcFiles) {
-                $log[] = '[' . now()->format('H:i:s') . '] Files already hosted on CoCalc Ubuntu. Syncing Live URL...';
+                $log[] = '[' . now()->format('H:i:s') . '] Files already hosted on EcoHost Cloud. Syncing Live URL...';
 
                 $health = $this->cocalcService->healthCheck();
                 if (!$health['online']) {
