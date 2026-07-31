@@ -1,0 +1,16 @@
+[Unit]
+Description=EcoHost CoCalc Ubuntu Webhook Receiver Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/user
+ExecStart=/usr/bin/python3 /home/user/deploy_receiver.py --port 9000 --secret ecohost_cocalc_secret_key_2026
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/user/ecohost_receiver.log
+StandardError=append:/home/user/ecohost_receiver_error.log
+
+[Install]
+WantedBy=multi-user.target
