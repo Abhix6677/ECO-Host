@@ -144,6 +144,14 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # --- Site visitor logs check ---------------------------------------
+        if path.startswith("/api/site/") and path.endswith("/logs"):
+            parts = path.strip("/").split("/")
+            if len(parts) == 4:
+                site_uuid = parts[2]
+                self._get_site_logs(site_uuid)
+                return
+
         # --- Static file serving --------------------------------------------
         if path.startswith("/storage/sites/"):
             self._serve_static(path)
@@ -363,6 +371,31 @@ class ReceiverHandler(BaseHTTPRequestHandler):
         })
 
     # -----------------------------------------------------------------------
+    # Get live site access/traffic logs
+    # -----------------------------------------------------------------------
+
+    def _get_site_logs(self, site_uuid: str) -> None:
+        if not self._auth():
+            self._err(401, "Unauthorized: invalid or missing X-EcoHost-Token.")
+            return
+
+        log_file = PUBLIC_DIR / site_uuid / ".access.log"
+        entries  = []
+
+        if log_file.exists():
+            try:
+                lines = log_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+                entries = lines[-100:]  # Return last 100 HTTP traffic hits
+            except Exception as exc:
+                log.warning("Could not read access log for %s: %s", site_uuid, exc)
+
+        self._ok({
+            "status":    "success",
+            "site_uuid": site_uuid,
+            "logs":      entries,
+        })
+
+    # -----------------------------------------------------------------------
     # Static file server — GET /storage/sites/{site_uuid}/path/to/file
     # -----------------------------------------------------------------------
 
@@ -386,11 +419,14 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             return
 
         if not file_path.exists() or not file_path.is_file():
+            self._record_access_log(site_uuid, sub_path, 404)
             self._err(404, f"File not found: {sub_path}")
             return
 
         content      = file_path.read_bytes()
         content_type = MIME_TYPES.get(file_path.suffix.lower(), "application/octet-stream")
+
+        self._record_access_log(site_uuid, sub_path, 200)
 
         self.send_response(200)
         self.send_header("Content-Type", content_type)
@@ -399,6 +435,21 @@ class ReceiverHandler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(content)
+
+    def _record_access_log(self, site_uuid: str, sub_path: str, status_code: int) -> None:
+        import datetime
+        try:
+            site_dir = PUBLIC_DIR / site_uuid
+            if not site_dir.exists():
+                return
+            log_file = site_dir / ".access.log"
+            now_str  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            client_ip = self.client_address[0] if self.client_address else "127.0.0.1"
+            log_line = f"[{now_str}] HTTP GET /{sub_path} - {status_code} OK - Visitor IP: {client_ip}\n"
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(log_line)
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

@@ -51,8 +51,40 @@ class WebsiteController extends Controller
         }
 
         $deployments = $website->deployments()->latest()->get();
+        $visitorLogs = $this->cocalcService->getSiteVisitorLogs($website);
 
-        return view('websites.show', compact('website', 'deployments'));
+        return view('websites.show', compact('website', 'deployments', 'visitorLogs'));
+    }
+
+    /**
+     * Endpoint to fetch live deployment & CoCalc visitor HTTP logs via JSON for real-time polling.
+     */
+    public function logs(Website $website)
+    {
+        if ($website->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $latestDeployment = $website->deployments()->latest()->first();
+        $deploymentLog = $latestDeployment ? $latestDeployment->log_output : '';
+
+        // Fetch live visitor HTTP hits from CoCalc receiver
+        $visitorLogs = $this->cocalcService->getSiteVisitorLogs($website);
+
+        $combinedLog = $deploymentLog;
+        if (!empty($visitorLogs)) {
+            $combinedLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (COCALC UBUNTU) ---\n";
+            $combinedLog .= implode("\n", $visitorLogs);
+        }
+
+        return response()->json([
+            'status'        => 'success',
+            'website'       => $website->name,
+            'deployment_id' => $latestDeployment?->uuid,
+            'log_output'    => $combinedLog,
+            'hit_count'     => count($visitorLogs),
+            'updated_at'    => now()->format('H:i:s'),
+        ]);
     }
 
     /**
@@ -119,10 +151,8 @@ class WebsiteController extends Controller
 
         $siteName = $website->name;
 
-        // If target is CoCalc, send remote deletion request
-        if (config('services.cocalc.target', 'local') === 'cocalc') {
-            $this->cocalcService->deleteFromCoCalc($website);
-        }
+        // Always attempt CoCalc remote file deletion (non-fatal if receiver is offline)
+        $this->cocalcService->deleteFromCoCalc($website);
 
         // Delete extracted storage files locally
         $absStoragePath = $this->storageService->absolutePath($website->storage_path);
@@ -130,8 +160,8 @@ class WebsiteController extends Controller
             $this->storageService->deleteDirectory($absStoragePath);
         }
 
-        // Delete deployed public files locally (if any)
-        if ($website->public_path) {
+        // Delete deployed public files locally (only if it's a local path, not a CoCalc path)
+        if ($website->public_path && !str_starts_with($website->public_path, 'cocalc://')) {
             $absPublicPath = $this->storageService->absolutePath($website->public_path);
             if (is_dir($absPublicPath)) {
                 $this->storageService->deleteDirectory($absPublicPath);

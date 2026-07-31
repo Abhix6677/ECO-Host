@@ -35,7 +35,7 @@ class CoCalcReceiverService
     public function healthCheck(): array
     {
         try {
-            $response = Http::timeout(5)->get("{$this->receiverUrl}/health");
+            $response = Http::timeout(5)->withoutVerifying()->get("{$this->receiverUrl}/health");
 
             return $response->successful()
                 ? ['online' => true,  'data'  => $response->json()]
@@ -72,12 +72,13 @@ class CoCalcReceiverService
             }
 
             // Send as multipart/form-data
-            // Laravel's attach() sets Content-Type to multipart/form-data automatically
+            // withoutVerifying() bypasses SSL cert check — needed for self-signed/Cloudflare tunnel certs on Windows
             $response = Http::withHeaders([
                     'X-EcoHost-Token' => $this->secretToken,
                     'Accept'          => 'application/json',
                 ])
-                ->timeout(120)  // large sites can take a while
+                ->timeout(120)
+                ->withoutVerifying()
                 ->attach('zip_file', file_get_contents($tempZip), 'site.zip')
                 ->post("{$this->receiverUrl}/api/deploy", [
                     'user_id'   => (string) $website->user_id,
@@ -87,6 +88,7 @@ class CoCalcReceiverService
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             throw new RuntimeException(
                 "Cannot connect to CoCalc receiver at {$this->receiverUrl}. " .
+                "Error: " . $e->getMessage() . " | " .
                 "Ensure deploy_receiver.py is running on CoCalc and the URL in COCALC_RECEIVER_URL is correct."
             );
         } finally {
@@ -118,6 +120,7 @@ class CoCalcReceiverService
                     'Accept'          => 'application/json',
                 ])
                 ->timeout(15)
+                ->withoutVerifying()
                 ->delete("{$this->receiverUrl}/api/site/{$website->uuid}");
 
             if ($response->successful()) {
@@ -132,6 +135,30 @@ class CoCalcReceiverService
             Log::warning("CoCalc: delete request failed for site {$website->uuid}: {$e->getMessage()}");
             return false; // Non-fatal — local DB cleanup still proceeds
         }
+    }
+
+    /**
+     * Fetch live visitor HTTP access logs from CoCalc for a website.
+     */
+    public function getSiteVisitorLogs(Website $website): array
+    {
+        try {
+            $response = Http::withHeaders([
+                    'X-EcoHost-Token' => $this->secretToken,
+                    'Accept'          => 'application/json',
+                ])
+                ->timeout(10)
+                ->withoutVerifying()
+                ->get("{$this->receiverUrl}/api/site/{$website->uuid}/logs");
+
+            if ($response->successful()) {
+                return $response->json('logs') ?? [];
+            }
+        } catch (\Throwable $e) {
+            Log::warning("CoCalc: failed to fetch visitor logs for site {$website->uuid}: " . $e->getMessage());
+        }
+
+        return [];
     }
 
     /**

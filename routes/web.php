@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Website Routes
+    Route::get('/websites/{website}/logs', [WebsiteController::class, 'logs'])->name('websites.logs');
     Route::resource('websites', WebsiteController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
 
     // Deployment Routes

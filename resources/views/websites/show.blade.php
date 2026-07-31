@@ -3,12 +3,20 @@
 @section('title', $website->name . ' — Details')
 
 @section('content')
-<div class="space-y-8" x-data="{ showConfirm: false }">
+@php
+    $latestLog = $deployments->isNotEmpty() ? $deployments->first()->log_output : 'No deployment logs recorded yet.';
+    if (!empty($visitorLogs)) {
+        $latestLog .= "\n\n--- 🌐 LIVE VISITOR TRAFFIC LOGS (COCALC UBUNTU) ---\n" . implode("\n", $visitorLogs);
+    }
+@endphp
+
+<div x-data="terminalApp()" x-init="startPolling()" class="space-y-8">
 
     <!-- Header Navigation & Actions -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center space-x-4">
-            <a href="{{ route('websites.index') }}" class="p-2 rounded-lg bg-hostinger-card border border-hostinger-border text-gray-400 hover:text-white transition">
+            <a href="{{ route('websites.index') }}" 
+               class="p-2.5 rounded-xl bg-hostinger-card border border-hostinger-border text-gray-400 hover:text-white hover:border-indigo-500/50 transition shadow-md">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
             <div>
@@ -16,22 +24,22 @@
                     <h2 class="text-2xl font-extrabold text-white tracking-tight">{{ $website->name }}</h2>
                     <!-- Status Badge -->
                     @if ($website->status === 'live')
-                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20 shadow-sm">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span>Live</span>
                         </span>
                     @elseif ($website->status === 'deploying')
-                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20 shadow-sm">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                             <span>Deploying</span>
                         </span>
                     @elseif ($website->status === 'failed')
-                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 text-xs font-semibold border border-rose-500/20">
-                            <i data-lucide="alert-circle" class="w-3 h-3"></i>
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-rose-400 text-xs font-semibold border border-rose-500/20 shadow-sm">
+                            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
                             <span>Failed</span>
                         </span>
                     @else
-                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 text-xs font-semibold border border-slate-500/20">
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-slate-500/10 text-slate-400 text-xs font-semibold border border-slate-500/20 shadow-sm">
                             <span>Ready</span>
                         </span>
                     @endif
@@ -41,7 +49,14 @@
         </div>
 
         <!-- Header Action Buttons -->
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+            {{-- Toggle Logs Button --}}
+            <button @click="showLiveConsole = !showLiveConsole"
+                    class="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-indigo-300 hover:text-white border border-indigo-500/30 font-bold text-xs rounded-xl shadow-lg transition flex items-center space-x-2">
+                <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
+                <span x-text="showLiveConsole ? 'Hide Terminal Logs' : 'View Terminal Logs'"></span>
+            </button>
+
             {{-- Deploy / Redeploy Button --}}
             <form method="POST" action="{{ route('websites.deploy', $website) }}">
                 @csrf
@@ -145,12 +160,80 @@
         </div>
     @endif
 
-    <!-- Deployment History & Terminal Logs Section -->
+    <!-- Big Screen Live Terminal Console (Auto-Syncing Deployment & Visitor HTTP Logs) -->
+    <div x-show="showLiveConsole" x-collapse class="space-y-3">
+        <div class="bg-black/90 border border-indigo-500/40 rounded-2xl overflow-hidden shadow-2xl">
+            
+            <!-- Terminal Window Titlebar -->
+            <div class="bg-slate-900/90 px-4 py-3 border-b border-indigo-500/30 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="flex space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs font-mono text-indigo-300">
+                        <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+                        <span class="font-bold">cocalc-ubuntu-receiver ~ deployment_&amp;_traffic_logs.log</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <!-- Live Sync Indicator -->
+                    <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[11px] font-mono border border-emerald-500/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" :class="isPolling ? 'animate-pulse' : 'bg-gray-500'"></span>
+                        <span x-text="isPolling ? 'Live Auto-Sync (3s)' : 'Sync Paused'"></span>
+                    </span>
+
+                    <!-- Sync Toggle Button -->
+                    <button @click="togglePolling()"
+                            class="px-2.5 py-1 text-xs font-mono text-gray-400 hover:text-white bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg transition flex items-center space-x-1">
+                        <i data-lucide="refresh-cw" class="w-3 h-3" :class="isFetching ? 'animate-spin text-indigo-400' : ''"></i>
+                        <span x-text="isPolling ? 'Pause Sync' : 'Resume Sync'"></span>
+                    </button>
+
+                    <!-- Refresh Now Button -->
+                    <button @click="fetchLogs()"
+                            class="px-2.5 py-1 text-xs font-mono text-gray-400 hover:text-white bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg transition flex items-center space-x-1">
+                        <i data-lucide="rotate-cw" class="w-3 h-3 text-indigo-400"></i>
+                        <span>Refresh</span>
+                    </button>
+
+                    <!-- Copy Logs -->
+                    <button @click="copyLogs()"
+                            class="px-2.5 py-1 text-xs font-mono text-gray-400 hover:text-white bg-slate-800 border border-slate-700 hover:border-indigo-500 rounded-lg transition flex items-center space-x-1">
+                        <i data-lucide="copy" class="w-3 h-3"></i>
+                        <span x-text="copiedLog ? 'Copied' : 'Copy'"></span>
+                    </button>
+
+                    <!-- Close Panel -->
+                    <button @click="showLiveConsole = false" class="text-gray-400 hover:text-white p-1">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Terminal Output Container -->
+            <div class="p-6 font-mono text-xs sm:text-sm text-emerald-400 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto bg-slate-950/95 scrollbar-thin scrollbar-thumb-indigo-600 shadow-inner"
+                 x-ref="logConsole">
+                <template x-if="logOutput">
+                    <span x-text="logOutput"></span>
+                </template>
+            </div>
+            
+            <div class="bg-slate-900/60 px-4 py-2 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono text-gray-400">
+                <span>CoCalc Ubuntu Realtime Stream</span>
+                <span>Last Updated: <span class="text-indigo-300 font-bold" x-text="lastUpdated"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment History & Logs Section -->
     <div class="space-y-4">
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
                 <i data-lucide="history" class="w-5 h-5 text-indigo-400"></i>
-                <span>Deployment History &amp; Logs</span>
+                <span>Deployment History &amp; Log Runs</span>
             </h3>
             <span class="text-xs font-semibold text-gray-400 bg-hostinger-card px-3 py-1 rounded-full border border-hostinger-border">
                 {{ $deployments->count() }} Total Deployment Runs
@@ -275,4 +358,53 @@
     </div>
 
 </div>
+
+<script>
+function terminalApp() {
+    return {
+        showConfirm: false,
+        showLiveConsole: true,
+        isPolling: true,
+        isFetching: false,
+        lastUpdated: 'Just now',
+        copiedLog: false,
+        logOutput: @json($latestLog),
+        pollTimer: null,
+
+        startPolling() {
+            this.pollTimer = setInterval(() => {
+                if (this.isPolling && this.showLiveConsole) {
+                    this.fetchLogs();
+                }
+            }, 3000);
+        },
+
+        async fetchLogs() {
+            this.isFetching = true;
+            try {
+                const res = await fetch('{{ route('websites.logs', $website) }}');
+                const data = await res.json();
+                if (data.status === 'success' && data.log_output) {
+                    this.logOutput = data.log_output;
+                    this.lastUpdated = data.updated_at;
+                }
+            } catch (e) {
+                console.error('Failed to poll logs:', e);
+            } finally {
+                this.isFetching = false;
+            }
+        },
+
+        togglePolling() {
+            this.isPolling = !this.isPolling;
+        },
+
+        copyLogs() {
+            navigator.clipboard.writeText(this.logOutput);
+            this.copiedLog = true;
+            setTimeout(() => this.copiedLog = false, 2000);
+        }
+    }
+}
+</script>
 @endsection

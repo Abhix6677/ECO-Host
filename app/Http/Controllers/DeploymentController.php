@@ -48,8 +48,11 @@ class DeploymentController extends Controller
             return back()->with('error', 'A deployment is already in progress for this website. Please wait.');
         }
 
-        // Reject if the website has never been uploaded (no source files)
-        if (!$website->storage_path || !is_dir(storage_path('app/' . $website->storage_path))) {
+        // Reject if the website has never been uploaded (no storage path and not on CoCalc)
+        $hasLocalFiles  = $website->storage_path && is_dir(storage_path('app/' . $website->storage_path));
+        $hasCoCalcFiles = str_starts_with($website->public_path ?? '', 'cocalc://');
+
+        if (!$hasLocalFiles && !$hasCoCalcFiles) {
             return back()->with('error', 'Website source files are missing. Please re-upload the website.');
         }
 

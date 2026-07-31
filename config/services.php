@@ -36,7 +36,6 @@ return [
     ],
 
     'cocalc' => [
-        'target'       => env('DEPLOYMENT_TARGET', 'local'),
         'receiver_url' => env('COCALC_RECEIVER_URL', 'http://localhost:9000'),
         'secret_key'   => env('COCALC_SECRET_KEY', 'ecohost_cocalc_secret_key_2026'),
     ],

@@ -194,7 +194,7 @@ class PhaseThreePointFiveCoCalcTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (['websites', 'public/sites'] as $dir) {
+        foreach (['public/sites'] as $dir) {
             $path = storage_path('app/' . $dir);
             if (is_dir($path)) {
                 $this->rrmdir($path);

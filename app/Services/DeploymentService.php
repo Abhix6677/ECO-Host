@@ -45,24 +45,39 @@ class DeploymentService
             $log[] = '[' . now()->format('H:i:s') . '] Receiver: ' . config('services.cocalc.receiver_url');
 
             // ----------------------------------------------------------------
-            // Step 1: Verify source files exist locally
+            // Step 1: Check local files or existing CoCalc deployment
             // ----------------------------------------------------------------
-            $srcPath = $this->storageService->absolutePath($website->storage_path);
+            $srcPath        = $this->storageService->absolutePath($website->storage_path);
+            $hasLocalFiles  = is_dir($srcPath);
+            $hasCoCalcFiles = str_starts_with($website->public_path ?? '', 'cocalc://');
 
-            if (!is_dir($srcPath)) {
-                throw new RuntimeException(
-                    "Source files not found at: {$srcPath}. Please re-upload the website ZIP."
-                );
+            if ($hasLocalFiles) {
+                $log[] = '[' . now()->format('H:i:s') . '] Source files verified locally.';
+                $log[] = '[' . now()->format('H:i:s') . '] Packaging ZIP and sending to CoCalc Ubuntu...';
+
+                $cocalcResult = $this->cocalcService->deployToCoCalc($website);
+
+            } else if ($hasCoCalcFiles) {
+                $log[] = '[' . now()->format('H:i:s') . '] Files already hosted on CoCalc Ubuntu. Syncing Live URL...';
+
+                $health = $this->cocalcService->healthCheck();
+                if (!$health['online']) {
+                    throw new RuntimeException("CoCalc receiver is offline: " . ($health['error'] ?? 'Connection failed'));
+                }
+
+                $cocalcUrl = config('services.cocalc.receiver_url');
+                $liveUrl   = rtrim($cocalcUrl, '/') . '/storage/sites/' . $website->uuid . '/';
+
+                $cocalcResult = [
+                    'message'     => 'Synced Live URL with active Cloudflare Tunnel.',
+                    'cocalc_path' => '/home/user/websites/public_sites/' . $website->uuid,
+                    'file_count'  => 1,
+                    'live_url'    => $liveUrl,
+                ];
+
+            } else {
+                throw new RuntimeException("Source files not found at: {$srcPath}. Please re-upload the website ZIP.");
             }
-
-            $log[] = '[' . now()->format('H:i:s') . '] Source files verified.';
-
-            // ----------------------------------------------------------------
-            // Step 2: Package & transmit to CoCalc Ubuntu via HTTP API
-            // ----------------------------------------------------------------
-            $log[] = '[' . now()->format('H:i:s') . '] Packaging ZIP and sending to CoCalc Ubuntu...';
-
-            $cocalcResult = $this->cocalcService->deployToCoCalc($website);
 
             $log[] = '[' . now()->format('H:i:s') . '] CoCalc Response: ' . ($cocalcResult['message'] ?? 'OK');
             $log[] = '[' . now()->format('H:i:s') . '] CoCalc Storage: '  . ($cocalcResult['cocalc_path'] ?? 'N/A');
