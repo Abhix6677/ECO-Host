@@ -49,6 +49,15 @@ PUBLIC_DIR     = BASE_DIR / "public_sites"
 CLOUDFLARE_URL: str = ""
 SECRET_TOKEN:   str = DEFAULT_SECRET
 
+FORBIDDEN_EXTENSIONS = {
+    ".php", ".php3", ".php4", ".php5", ".php7", ".php8", ".phtml", ".phar",
+    ".exe", ".bat", ".cmd", ".com", ".msi",
+    ".sh", ".bash", ".zsh", ".ps1",
+    ".py", ".pyc", ".rb", ".pl",
+    ".env", ".htaccess", ".htpasswd",
+    ".asp", ".aspx", ".cgi"
+}
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
