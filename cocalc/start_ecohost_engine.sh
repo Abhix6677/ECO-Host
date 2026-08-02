@@ -17,13 +17,13 @@ nohup cloudflared tunnel --url http://localhost:9000 > ~/tunnel.log 2>&1 &
 echo "[$(date)] Cloudflare Tunnel started. Waiting for connection..."
 sleep 5
 
-# 3. Extract the active trycloudflare URL
-TUNNEL_URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' ~/tunnel.log | tail -n 1)
+# 3. Extract the active trycloudflare URL using Python 3
+TUNNEL_URL=$(python3 -c "import re; f=open('/home/user/tunnel.log').read() if __import__('os').path.exists('/home/user/tunnel.log') else ''; m=re.findall(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', f); print(m[-1] if m else '')")
 
 if [ -z "$TUNNEL_URL" ]; then
     echo "[$(date)] ⚠️ Cloudflare URL not found in log yet, retrying in 3s..."
     sleep 3
-    TUNNEL_URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' ~/tunnel.log | tail -n 1)
+    TUNNEL_URL=$(python3 -c "import re; f=open('/home/user/tunnel.log').read() if __import__('os').path.exists('/home/user/tunnel.log') else ''; m=re.findall(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', f); print(m[-1] if m else '')")
 fi
 
 echo "[$(date)] 🌐 Active Cloudflare URL: $TUNNEL_URL"
