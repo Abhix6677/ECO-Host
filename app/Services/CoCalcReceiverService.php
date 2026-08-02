@@ -23,10 +23,43 @@ class CoCalcReceiverService
     private string $receiverUrl;
     private string $secretToken;
 
+    /** kvdb.io bucket for auto-discovery of CoCalc receiver URL */
+    private const KVDB_BUCKET = 'HSTd8BeDfsQhDnjA6ooYoX';
+
     public function __construct()
     {
+        // Start with .env URL as fallback
         $this->receiverUrl = rtrim(config('services.cocalc.receiver_url', 'http://localhost:9000'), '/');
         $this->secretToken = config('services.cocalc.secret_key', 'ecohost_cocalc_secret_key_2026');
+
+        // Auto-discover latest URL from kvdb.io (updated by CoCalc on every restart)
+        $this->receiverUrl = $this->resolveReceiverUrl();
+    }
+
+    /**
+     * Fetch the latest receiver URL from kvdb.io.
+     * CoCalc publishes its tunnel URL there on every startup.
+     * Falls back to .env if kvdb.io is unreachable.
+     */
+    private function resolveReceiverUrl(): string
+    {
+        try {
+            $kvUrl = 'https://kvdb.io/' . self::KVDB_BUCKET . '/receiver_url';
+            $ctx   = stream_context_create(['http' => ['timeout' => 4, 'ignore_errors' => true]]);
+            $raw   = @file_get_contents($kvUrl, false, $ctx);
+
+            if ($raw && filter_var(trim($raw), FILTER_VALIDATE_URL)) {
+                $fresh = rtrim(trim($raw), '/');
+                if ($fresh !== $this->receiverUrl) {
+                    Log::info("CoCalc: Auto-discovered new receiver URL from kvdb: {$fresh}");
+                }
+                return $fresh;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('CoCalc: kvdb.io URL lookup failed: ' . $e->getMessage());
+        }
+
+        return $this->receiverUrl;
     }
 
     /**
