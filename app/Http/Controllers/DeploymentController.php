@@ -14,6 +14,7 @@ class DeploymentController extends Controller
     public function __construct(
         private DeploymentService $deploymentService,
         private CloudflareTunnelService $tunnelService,
+        private \App\Services\CoCalcReceiverService $cocalcService,
     ) {}
 
     /**
@@ -27,7 +28,8 @@ class DeploymentController extends Controller
             ->latest()
             ->paginate(15);
 
-        $isTunnelConfigured = $this->tunnelService->isTunnelConfigured();
+        $nodeHealth = $this->cocalcService->healthCheck();
+        $isTunnelConfigured = $nodeHealth['online'];
 
         return view('deployments.index', compact('deployments', 'isTunnelConfigured'));
     }

@@ -42,6 +42,11 @@ class CloudflareTunnelService
      */
     public function getTunnelBaseUrl(): string
     {
+        $cocalcUrl = config('services.cocalc.receiver_url');
+        if (!empty($cocalcUrl) && filter_var($cocalcUrl, FILTER_VALIDATE_URL)) {
+            return rtrim($cocalcUrl, '/');
+        }
+
         $envUrl = env(self::ENV_TUNNEL_URL);
 
         if (!empty($envUrl) && filter_var($envUrl, FILTER_VALIDATE_URL)) {
@@ -73,6 +78,11 @@ class CloudflareTunnelService
      */
     public function isTunnelConfigured(): bool
     {
+        $cocalcUrl = config('services.cocalc.receiver_url');
+        if (!empty($cocalcUrl) && filter_var($cocalcUrl, FILTER_VALIDATE_URL)) {
+            return true;
+        }
+
         $envUrl = env(self::ENV_TUNNEL_URL);
         return !empty($envUrl) && filter_var($envUrl, FILTER_VALIDATE_URL);
     }

@@ -512,10 +512,16 @@ def main() -> None:
         default=os.environ.get("CLOUDFLARE_TUNNEL_URL", ""),
         help="Public Cloudflare tunnel URL (e.g. https://xxxx.trycloudflare.com)",
     )
+    parser.add_argument(
+        "--ecohost-url", type=str,
+        default=os.environ.get("ECOHOST_APP_URL", ""),
+        help="EcoHost master application URL for auto-registering new Cloudflare URL (e.g. http://127.0.0.1:8000)",
+    )
     args = parser.parse_args()
 
     SECRET_TOKEN   = args.secret
     CLOUDFLARE_URL = args.cloudflare_url.rstrip("/") if args.cloudflare_url else ""
+    ECOHOST_URL    = args.ecohost_url.rstrip("/") if args.ecohost_url else ""
 
     # Ensure storage directories exist
     BASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -531,7 +537,25 @@ def main() -> None:
     log.info(" Public sites   : %s", PUBLIC_DIR)
     log.info(" Secret         : %s***", SECRET_TOKEN[:4])
     log.info(" Cloudflare URL : %s", cf_display)
+    if ECOHOST_URL:
+        log.info(" EcoHost Master : %s", ECOHOST_URL)
     log.info("=" * 56)
+
+    # Auto-register Cloudflare URL with EcoHost Master if requested
+    if ECOHOST_URL and CLOUDFLARE_URL:
+        def auto_register():
+            import urllib.request
+            try:
+                reg_endpoint = f"{ECOHOST_URL}/api/cocalc/register-node"
+                payload = json.dumps({"url": CLOUDFLARE_URL, "secret": SECRET_TOKEN}).encode("utf-8")
+                req = urllib.request.Request(reg_endpoint, data=payload, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    res_body = json.loads(resp.read().decode("utf-8"))
+                    log.info("✅ EcoHost Master Auto-Register Result: %s", res_body.get("message"))
+            except Exception as ex:
+                log.warning("⚠️ EcoHost Master Auto-Register Warning: %s", ex)
+
+        Thread(target=auto_register, daemon=True).start()
 
     server = ThreadedHTTPServer(("0.0.0.0", args.port), ReceiverHandler)
 

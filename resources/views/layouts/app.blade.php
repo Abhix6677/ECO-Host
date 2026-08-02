@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,20 +23,21 @@
                     },
                     colors: {
                         brand: {
-                            50: '#eef2ff',
+                            50: '#f0f3ff',
                             100: '#e0e7ff',
-                            400: '#818cf8',
+                            200: '#c7d2fe',
                             500: '#6366f1',
                             600: '#4f46e5',
                             700: '#4338ca',
+                            900: '#1e1b4b',
                         },
                         hostinger: {
-                            dark: '#0b0f19',
-                            card: '#131b2e',
-                            cardHover: '#1a243d',
-                            border: '#232f48',
-                            accent: '#6366f1',
-                            glow: 'rgba(99, 102, 241, 0.15)'
+                            dark: '#F8FAFC',
+                            card: '#ffffff',
+                            cardHover: '#f1f5f9',
+                            border: '#e2e8f0',
+                            accent: '#4f46e5',
+                            glow: 'rgba(79, 70, 229, 0.15)'
                         }
                     }
                 }
@@ -53,20 +54,21 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0b0f19;
-            color: #f3f4f6;
+            background-color: #F8FAFC;
+            color: #1e293b;
         }
         .glow-effect {
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.12);
+            box-shadow: 0 10px 30px -5px rgba(79, 70, 229, 0.15);
         }
         .glass-card {
-            background: rgba(19, 27, 46, 0.75);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
-            border: 1px solid #232f48;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
     </style>
 </head>
-<body class="antialiased bg-hostinger-dark text-gray-100 flex min-h-screen">
+<body class="antialiased bg-hostinger-dark text-slate-800 flex min-h-screen">
 
     @auth
         <!-- Sidebar -->

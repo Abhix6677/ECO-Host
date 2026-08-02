@@ -8,10 +8,11 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\WebsiteController;
 use Illuminate\Support\Facades\Route;
 
-// Public Landing Page
+// Public Landing Page & Webhooks
 Route::get('/', function () {
     return view('landing');
 });
+Route::post('/api/cocalc/register-node', [SettingsController::class, 'registerNode'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // Guest Routes
 Route::middleware('guest')->group(function () {
@@ -39,4 +40,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::put('/settings/node-url', [SettingsController::class, 'updateNodeUrl'])->name('settings.node');
 });

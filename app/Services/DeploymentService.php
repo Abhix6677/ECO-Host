@@ -119,7 +119,7 @@ class DeploymentService
 
         } catch (Throwable $e) {
             $errorLog  = isset($log) ? implode("\n", $log) : '';
-            $errorLog .= "\n[FATAL] " . $e->getMessage();
+            $errorLog .= "\n[FATAL] Cannot connect to CoCalc receiver at " . config('services.cocalc.receiver_url') . '. Error: ' . $e->getMessage();
             $errorLog .= "\n[FILE]  " . $e->getFile() . ':' . $e->getLine();
 
             $deployment->update([
