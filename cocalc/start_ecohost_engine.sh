@@ -9,6 +9,8 @@ SECRET_KEY="ecohost_cocalc_secret_key_2026"
 SERVEO_SUBDOMAIN="ecohost-abhix"
 FIXED_URL="https://${SERVEO_SUBDOMAIN}.serveo.net"
 
+SSH_KEY="$HOME/.ssh/ecohost_tunnel_key"
+
 echo "[$(date)] Starting EcoHost 24/7 Engine Startup Sequence..."
 
 # 1. Kill stale port 9000 processes
@@ -21,13 +23,20 @@ pkill -f "localhost.run" > /dev/null 2>&1
 pkill -f "ngrok" > /dev/null 2>&1
 sleep 1
 
-# 3. Add serveo.net to known_hosts to avoid interactive prompt
+# 3. Generate dedicated SSH key (once — gives consistent URL on serveo.net!)
+if [ ! -f "$SSH_KEY" ]; then
+    echo "[$(date)] 🔑 Generating permanent SSH tunnel key..."
+    ssh-keygen -t rsa -b 2048 -N "" -f "$SSH_KEY" -q
+    echo "[$(date)] ✅ SSH key created: $SSH_KEY"
+fi
+
+# 4. Add serveo.net to known_hosts to avoid interactive prompt
 ssh-keyscan -H serveo.net >> ~/.ssh/known_hosts 2>/dev/null
 
-# 4. Launch serveo.net SSH tunnel with FIXED custom subdomain (permanent!)
-#    URL will ALWAYS be: https://ecohost-abhix.serveo.net
+# 5. Launch serveo.net tunnel WITH SSH key + custom subdomain
 echo "[$(date)] 🌐 Starting serveo.net permanent tunnel..."
-nohup ssh -o StrictHostKeyChecking=no \
+nohup ssh -i "$SSH_KEY" \
+    -o StrictHostKeyChecking=no \
     -o ServerAliveInterval=30 \
     -o ServerAliveCountMax=10 \
     -o ExitOnForwardFailure=yes \
