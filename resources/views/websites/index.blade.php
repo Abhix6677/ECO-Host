@@ -134,25 +134,55 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2" x-data="{ isDeploying: false }">
                             {{-- Deploy Button (shown when not live) --}}
                             @if ($site->status !== 'live' && $site->status !== 'deploying')
-                                <form method="POST" action="{{ Route::has('websites.deploy') ? route('websites.deploy', $site) : '#' }}" class="flex-1" @click.stop>
+                                <form method="POST" action="{{ Route::has('websites.deploy') ? route('websites.deploy', $site) : '#' }}" class="flex-1" @click.stop @submit="isDeploying = true">
                                     @csrf
                                     <button type="submit"
-                                            class="w-full py-2.5 px-3 bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5">
-                                        <i data-lucide="rocket" class="w-4 h-4"></i>
-                                        <span>Deploy</span>
+                                            :disabled="isDeploying"
+                                            :class="isDeploying ? 'opacity-85 btn-pulse-glow cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'"
+                                            class="w-full py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all duration-200 flex items-center justify-center space-x-1.5">
+                                        <template x-if="!isDeploying">
+                                            <span class="flex items-center space-x-1.5">
+                                                <i data-lucide="rocket" class="w-4 h-4"></i>
+                                                <span>Deploy</span>
+                                            </span>
+                                        </template>
+                                        <template x-if="isDeploying">
+                                            <span class="flex items-center space-x-1.5">
+                                                <svg class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <span>Deploying...</span>
+                                            </span>
+                                        </template>
                                     </button>
                                 </form>
                             @else
                                 {{-- Redeploy Button (shown when live) --}}
-                                <form method="POST" action="{{ Route::has('websites.deploy') ? route('websites.deploy', $site) : '#' }}" class="flex-1" @click.stop>
+                                <form method="POST" action="{{ Route::has('websites.deploy') ? route('websites.deploy', $site) : '#' }}" class="flex-1" @click.stop @submit="isDeploying = true">
                                     @csrf
                                     <button type="submit"
-                                            class="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-sm font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5">
-                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                                        <span>Redeploy</span>
+                                            :disabled="isDeploying"
+                                            :class="isDeploying ? 'opacity-85 btn-pulse-glow cursor-not-allowed bg-indigo-600 text-white' : 'hover:scale-[1.02] active:scale-95 bg-slate-100 hover:bg-slate-200 text-slate-700'"
+                                            class="w-full py-2.5 px-3 border border-slate-200 shadow-sm font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center space-x-1.5">
+                                        <template x-if="!isDeploying">
+                                            <span class="flex items-center space-x-1.5">
+                                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                                <span>Redeploy</span>
+                                            </span>
+                                        </template>
+                                        <template x-if="isDeploying">
+                                            <span class="flex items-center space-x-1.5">
+                                                <svg class="animate-spin w-4 h-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <span class="text-indigo-600">Redeploying...</span>
+                                            </span>
+                                        </template>
                                     </button>
                                 </form>
                             @endif
@@ -160,7 +190,7 @@
                             {{-- Open Live URL --}}
                             @if ($site->live_url)
                                 <a href="{{ $site->live_url }}" target="_blank" @click.stop
-                                   class="py-2.5 px-3 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-500/20 transition flex items-center space-x-1.5">
+                                   class="py-2.5 px-3 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-95 flex items-center space-x-1.5">
                                     <i data-lucide="external-link" class="w-4 h-4"></i>
                                     <span>Open</span>
                                 </a>
@@ -168,7 +198,7 @@
 
                             {{-- Delete Button with Confirmation Modal --}}
                             <button @click.stop="showConfirm = true"
-                                    class="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center space-x-1.5">
+                                    class="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all duration-200 hover:scale-[1.02] active:scale-95 flex items-center space-x-1.5">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
