@@ -250,6 +250,7 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
+        # --- Extract ZIP safely ----------------------------------------------
         file_count = 0
         try:
             with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
@@ -268,6 +269,21 @@ class ReceiverHandler(BaseHTTPRequestHandler):
                         continue
 
                     if member.is_dir():
+                        dest_file.mkdir(parents=True, exist_ok=True)
+                        continue
+
+                    dest_file.parent.mkdir(parents=True, exist_ok=True)
+                    with zf.open(member) as src, open(dest_file, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    file_count += 1
+
+                    # Also extract to user_dir
+                    user_file = (user_dir / name).resolve()
+                    if str(user_file).startswith(str(user_dir.resolve())):
+                        user_file.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(dest_file, user_file)
+
+        except Exception as exc:
             shutil.rmtree(user_dir, ignore_errors=True)
             shutil.rmtree(public_dir, ignore_errors=True)
             log.exception("ZIP extraction failed")

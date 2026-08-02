@@ -66,11 +66,11 @@ class DeploymentService
                 }
 
                 $cocalcUrl = config('services.cocalc.receiver_url');
-                $liveUrl   = rtrim($cocalcUrl, '/') . '/storage/sites/' . $website->uuid . '/';
+                $liveUrl   = rtrim($cocalcUrl, '/') . '/site/' . $website->slug . '/';
 
                 $cocalcResult = [
                     'message'     => 'Synced Live URL with active Cloudflare Tunnel.',
-                    'cocalc_path' => '/home/user/websites/public_sites/' . $website->uuid,
+                    'cocalc_path' => '/home/user/websites/public_sites/' . $website->slug,
                     'file_count'  => 1,
                     'live_url'    => $liveUrl,
                 ];
