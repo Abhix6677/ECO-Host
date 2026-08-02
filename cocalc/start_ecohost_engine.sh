@@ -21,7 +21,7 @@ pkill -f cloudflared > /dev/null 2>&1
 sleep 1
 
 # 3. Launch ngrok with STATIC domain (permanent URL — never changes!)
-nohup ngrok http --domain="${NGROK_STATIC_DOMAIN}" 9000 > ~/ngrok.log 2>&1 &
+nohup ngrok http --url="${NGROK_STATIC_DOMAIN}" 9000 > ~/ngrok.log 2>&1 &
 echo "[$(date)] ngrok tunnel started with static domain: ${NGROK_STATIC_DOMAIN}"
 sleep 4
 
