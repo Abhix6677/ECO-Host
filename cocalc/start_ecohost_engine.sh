@@ -68,10 +68,14 @@ fi
 echo "[$(date)] 🌐 Active Tunnel URL: $TUNNEL_URL"
 echo "$TUNNEL_URL" > ~/active_url.txt
 
-# 7. ✅ AUTO-REGISTER: Push new URL to kvdb.io so EcoHost auto-discovers it!
-echo "[$(date)] 📡 Publishing URL to EcoHost Cloud Registry..."
-curl -s "https://kvdb.io/${KVDB_BUCKET}/receiver_url" -d "$TUNNEL_URL" > /dev/null 2>&1
-echo "[$(date)] ✅ URL published! EcoHost will auto-discover: $TUNNEL_URL"
+# 7. ✅ AUTO-PUBLISH: Push new URL to GitHub so EcoHost auto-discovers it!
+echo "[$(date)] 📡 Publishing URL to GitHub registry..."
+echo "$TUNNEL_URL" > ~/ECO-Host/cocalc/live_url.txt
+cd ~/ECO-Host
+git add cocalc/live_url.txt
+git commit -m "[auto] Update CoCalc receiver URL: $TUNNEL_URL" > /dev/null 2>&1 || true
+git push origin master > /dev/null 2>&1 && echo "[$(date)] ✅ URL published to GitHub! EcoHost will auto-discover: $TUNNEL_URL" || echo "[$(date)] ⚠️ GitHub push failed, EcoHost may use stale URL"
+cd ~
 
 # 8. Launch EcoHost Python Webhook Receiver (Port 9000)
 nohup python3 ~/deploy_receiver.py \

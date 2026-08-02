@@ -37,26 +37,27 @@ class CoCalcReceiverService
     }
 
     /**
-     * Fetch the latest receiver URL from kvdb.io.
-     * CoCalc publishes its tunnel URL there on every startup.
-     * Falls back to .env if kvdb.io is unreachable.
+     * Fetch the latest receiver URL from GitHub.
+     * CoCalc pushes its tunnel URL to cocalc/live_url.txt on every startup.
+     * Falls back to .env if GitHub is unreachable.
      */
     private function resolveReceiverUrl(): string
     {
         try {
-            $kvUrl = 'https://kvdb.io/' . self::KVDB_BUCKET . '/receiver_url';
-            $ctx   = stream_context_create(['http' => ['timeout' => 4, 'ignore_errors' => true]]);
-            $raw   = @file_get_contents($kvUrl, false, $ctx);
+            // Read from GitHub raw content — CoCalc updates this on every restart
+            $githubRaw = 'https://raw.githubusercontent.com/Abhix6677/ECO-Host/master/cocalc/live_url.txt?t=' . time();
+            $ctx = stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
+            $raw = @file_get_contents($githubRaw, false, $ctx);
 
             if ($raw && filter_var(trim($raw), FILTER_VALIDATE_URL)) {
                 $fresh = rtrim(trim($raw), '/');
                 if ($fresh !== $this->receiverUrl) {
-                    Log::info("CoCalc: Auto-discovered new receiver URL from kvdb: {$fresh}");
+                    Log::info("CoCalc: Auto-discovered new receiver URL from GitHub: {$fresh}");
                 }
                 return $fresh;
             }
         } catch (\Throwable $e) {
-            Log::warning('CoCalc: kvdb.io URL lookup failed: ' . $e->getMessage());
+            Log::warning('CoCalc: GitHub URL lookup failed: ' . $e->getMessage());
         }
 
         return $this->receiverUrl;
