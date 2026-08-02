@@ -17,40 +17,26 @@ fuser -k 9000/tcp > /dev/null 2>&1
 sleep 1
 
 # 2. Kill old tunnel processes
+pkill -f "cloudflared" > /dev/null 2>&1
 pkill -f "localhost.run" > /dev/null 2>&1
 pkill -f "serveo.net" > /dev/null 2>&1
 pkill -f "ngrok" > /dev/null 2>&1
 sleep 1
 
-# 3. Generate dedicated SSH key once (same key = more consistent URL on localhost.run)
-if [ ! -f "$SSH_KEY" ]; then
-    echo "[$(date)] 🔑 Generating permanent SSH tunnel key..."
-    ssh-keygen -t rsa -b 2048 -N "" -f "$SSH_KEY" -q
-    echo "[$(date)] ✅ SSH key created: $SSH_KEY"
-fi
+# 3. Launch Cloudflare Tunnel in background (rock-solid 24/7 tunnel)
+echo "[$(date)] 🌐 Starting Cloudflare Tunnel..."
+nohup cloudflared tunnel --url http://localhost:9000 > ~/tunnel.log 2>&1 &
 
-# 4. Add known_hosts to avoid interactive prompt
-ssh-keyscan -H localhost.run >> ~/.ssh/known_hosts 2>/dev/null
+echo "[$(date)] Waiting for Cloudflare Tunnel URL..."
+sleep 6
 
-# 5. Launch localhost.run SSH tunnel with dedicated key
-echo "[$(date)] 🌐 Starting tunnel..."
-nohup ssh -i "$SSH_KEY" \
-    -o StrictHostKeyChecking=no \
-    -o ServerAliveInterval=30 \
-    -o ServerAliveCountMax=10 \
-    -R 80:localhost:9000 \
-    nokey@localhost.run > ~/tunnel.log 2>&1 &
-
-echo "[$(date)] Waiting for tunnel URL..."
-sleep 7
-
-# 6. Extract tunnel URL using Python3
+# 4. Extract Cloudflare URL using Python 3 (bypasses broken system grep)
 TUNNEL_URL=$(python3 -c "
 import re, time
-for _ in range(10):
+for _ in range(12):
     try:
         data = open('/home/user/tunnel.log').read()
-        m = re.findall(r'https://[a-zA-Z0-9\-]+\.lhr\.life', data)
+        m = re.findall(r'https://[a-zA-Z0-9\-]+\.trycloudflare\.com', data)
         if m:
             print(m[-1])
             break
@@ -60,7 +46,7 @@ for _ in range(10):
 ")
 
 if [ -z "$TUNNEL_URL" ]; then
-    echo "[$(date)] ⚠️ Could not extract tunnel URL. Check ~/tunnel.log"
+    echo "[$(date)] ⚠️ Could not extract Cloudflare URL. Check ~/tunnel.log"
     cat ~/tunnel.log
     exit 1
 fi
