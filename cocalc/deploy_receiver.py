@@ -322,6 +322,30 @@ class ReceiverHandler(BaseHTTPRequestHandler):
 
         log.info("Extracted %d files → %s", file_count, public_dir)
 
+        # Create slug symlink/copy for clean /site/{slug}/ URL access
+        if site_slug and site_slug != site_uuid:
+            slug_dir = PUBLIC_DIR / site_slug
+            # Remove old slug dir if exists
+            if slug_dir.exists() or slug_dir.is_symlink():
+                try:
+                    if slug_dir.is_symlink():
+                        slug_dir.unlink()
+                    else:
+                        shutil.rmtree(str(slug_dir))
+                except Exception:
+                    pass
+            # Create symlink: public_sites/{slug} → public_sites/{uuid}
+            try:
+                slug_dir.symlink_to(public_dir)
+                log.info("Slug symlink created: %s → %s", slug_dir.name, public_dir.name)
+            except Exception as sym_err:
+                log.warning("Symlink failed (%s), copying instead...", sym_err)
+                try:
+                    shutil.copytree(str(public_dir), str(slug_dir))
+                    log.info("Slug copy created: %s", slug_dir.name)
+                except Exception as copy_err:
+                    log.error("Slug copy also failed: %s", copy_err)
+
         clean_path = f"/site/{site_slug}/"
         if CLOUDFLARE_URL:
             live_url = f"{CLOUDFLARE_URL}{clean_path}"
