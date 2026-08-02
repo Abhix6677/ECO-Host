@@ -49,28 +49,38 @@
         </div>
 
         <!-- Header Action Buttons -->
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3" x-data="{ isDeploying: false, isDeleting: false }">
             {{-- Toggle Logs Button --}}
             <button @click="showLiveConsole = !showLiveConsole"
-                    class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-xl shadow-sm transition flex items-center space-x-2">
+                    class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-xl shadow-sm transition-all duration-200 active:scale-95 flex items-center space-x-2">
                 <i data-lucide="terminal" class="w-4 h-4 text-indigo-600"></i>
                 <span x-text="showLiveConsole ? 'Hide Terminal Logs' : 'View Terminal Logs'"></span>
             </button>
 
-            {{-- Deploy / Redeploy Button --}}
-            <form method="POST" action="{{ route('websites.deploy', $website) }}">
+            {{-- Deploy / Redeploy Button with Spinning Animation --}}
+            <form method="POST" action="{{ route('websites.deploy', $website) }}" @submit="isDeploying = true">
                 @csrf
                 <button type="submit"
-                        class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition flex items-center space-x-2">
-                    <i data-lucide="{{ $website->status === 'live' ? 'refresh-cw' : 'rocket' }}" class="w-4 h-4"></i>
-                    <span>{{ $website->status === 'live' ? 'Redeploy Site' : 'Deploy Site' }}</span>
+                        :disabled="isDeploying"
+                        :class="isDeploying ? 'opacity-85 btn-pulse-glow cursor-not-allowed' : 'hover:scale-[1.02] active:scale-95'"
+                        class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all duration-200 flex items-center space-x-2">
+                    <template x-if="!isDeploying">
+                        <i data-lucide="{{ $website->status === 'live' ? 'refresh-cw' : 'rocket' }}" class="w-4 h-4"></i>
+                    </template>
+                    <template x-if="isDeploying">
+                        <svg class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </template>
+                    <span x-text="isDeploying ? 'Deploying to Cloud...' : '{{ $website->status === 'live' ? 'Redeploy Site' : 'Deploy Site' }}'"></span>
                 </button>
             </form>
 
             {{-- Open Live URL --}}
             @if ($website->live_url)
                 <a href="{{ $website->live_url }}" target="_blank"
-                   class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 shadow-sm transition flex items-center space-x-1.5">
+                   class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95 flex items-center space-x-1.5">
                     <i data-lucide="external-link" class="w-4 h-4"></i>
                     <span>Open Site</span>
                 </a>
@@ -78,7 +88,7 @@
 
             {{-- Delete Button --}}
             <button @click="showConfirm = true"
-                    class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center space-x-1.5">
+                    class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-all duration-200 hover:scale-[1.02] active:scale-95 flex items-center space-x-1.5">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                 <span>Delete</span>
             </button>

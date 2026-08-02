@@ -227,7 +227,8 @@
             <!-- Submit Button -->
             <button type="submit" id="upload-btn"
                     :disabled="isUploading"
-                    class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition flex items-center justify-center space-x-2">
+                    :class="isUploading ? 'opacity-85 btn-pulse-glow cursor-not-allowed' : 'hover:scale-[1.01] active:scale-95'"
+                    class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all duration-200 flex items-center justify-center space-x-2">
                 <template x-if="!isUploading">
                     <span class="flex items-center space-x-2">
                         <i data-lucide="rocket" class="w-4 h-4"></i>
@@ -240,7 +241,7 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
-                        <span x-text="sourceType === 'github' ? 'Fetching GitHub Repo...' : 'Uploading &amp; Validating...'"></span>
+                        <span x-text="sourceType === 'github' ? 'Fetching &amp; Deploying GitHub Repo...' : 'Uploading &amp; Deploying to Cloud...'"></span>
                     </span>
                 </template>
             </button>

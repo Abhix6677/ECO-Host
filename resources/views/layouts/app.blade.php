@@ -66,6 +66,76 @@
             border: 1px solid #e2e8f0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         }
+
+        /* --- High-Impression Interactive Button Animations --- */
+        button, a.btn, input[type="submit"] {
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        button:active, a.btn:active, input[type="submit"]:active {
+            transform: scale(0.96) translateY(1px);
+        }
+        .btn-pulse-glow {
+            animation: pulseGlowRing 2s infinite;
+        }
+        @keyframes pulseGlowRing {
+            0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            70% { box-shadow: 0 0 0 12px rgba(79, 70, 229, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+        }
+        .shimmer-btn {
+            background-size: 200% 100%;
+            animation: shimmerMove 3s infinite linear;
+        }
+        @keyframes shimmerMove {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Attach ripple click animation to all buttons globally
+            document.body.addEventListener('click', (e) => {
+                const btn = e.target.closest('button, a.btn, .animated-btn');
+                if (!btn) return;
+                
+                const circle = document.createElement('span');
+                const diameter = Math.max(btn.clientWidth, btn.clientHeight);
+                const radius = diameter / 2;
+                const rect = btn.getBoundingClientRect();
+                
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${e.clientX - rect.left - radius}px`;
+                circle.style.top = `${e.clientY - rect.top - radius}px`;
+                circle.classList.add('ripple-wave');
+                
+                const existingRipple = btn.getElementsByClassName('ripple-wave')[0];
+                if (existingRipple) {
+                    existingRipple.remove();
+                }
+                
+                btn.appendChild(circle);
+                setTimeout(() => circle.remove(), 600);
+            });
+        });
+    </script>
+    <style>
+        .ripple-wave {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: rippleAnim 0.6s linear;
+            background-color: rgba(255, 255, 255, 0.35);
+            pointer-events: none;
+        }
+        @keyframes rippleAnim {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body class="antialiased bg-hostinger-dark text-slate-800 flex min-h-screen">
