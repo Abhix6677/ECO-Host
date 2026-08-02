@@ -83,6 +83,7 @@ class CoCalcReceiverService
                 ->post("{$this->receiverUrl}/api/deploy", [
                     'user_id'   => (string) $website->user_id,
                     'site_uuid' => (string) $website->uuid,
+                    'site_slug' => (string) $website->slug,
                 ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {

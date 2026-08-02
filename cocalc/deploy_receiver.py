@@ -192,27 +192,28 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             form = cgi.FieldStorage(
                 fp=self.rfile,
                 headers=self.headers,
-                environ=environ,
+                environ={"REQUEST_METHOD": "POST", "CONTENT_TYPE": content_type, "CONTENT_LENGTH": self.headers.get("Content-Length", "0")}
             )
         except Exception as exc:
             log.exception("Failed to parse multipart body")
             self._err(400, f"Multipart parse error: {exc}")
             return
 
-        # Extract fields
         user_id   = (form.getvalue("user_id")   or "").strip()
         site_uuid = (form.getvalue("site_uuid") or "").strip()
+        site_slug = (form.getvalue("site_slug") or site_uuid).strip()
 
         if not user_id or not site_uuid:
             self._err(400, "Missing required fields: user_id, site_uuid.")
             return
 
-        # Validate UUID-like format (no path traversal via field value)
         if "/" in site_uuid or "\\" in site_uuid or ".." in site_uuid:
             self._err(400, "Invalid site_uuid value.")
             return
 
-        # Read ZIP bytes
+        if "/" in site_slug or "\\" in site_slug or ".." in site_slug:
+            site_slug = site_uuid
+
         if "zip_file" not in form:
             self._err(400, "Missing file field: zip_file.")
             return
@@ -224,61 +225,49 @@ class ReceiverHandler(BaseHTTPRequestHandler):
             self._err(400, "zip_file is empty.")
             return
 
-        log.info("Deploy request — user_id=%s site_uuid=%s zip_size=%d bytes",
-                 user_id, site_uuid, len(zip_bytes))
+        log.info("Deploy request — user_id=%s site_uuid=%s site_slug=%s zip_size=%d bytes",
+                 user_id, site_uuid, site_slug, len(zip_bytes))
 
-        # Validate ZIP
         if not zipfile.is_zipfile(io.BytesIO(zip_bytes)):
             self._err(422, "Uploaded file is not a valid ZIP archive.")
             return
 
-        # --- Destination directories ----------------------------------------
         user_dir   = BASE_DIR / f"user_{user_id}" / site_uuid
         public_dir = PUBLIC_DIR / site_uuid
+        slug_dir   = PUBLIC_DIR / site_slug
 
-        # Clean previous deployment (full wipe for clean redeploy)
         for d in (user_dir, public_dir):
             if d.exists():
                 shutil.rmtree(d)
             d.mkdir(parents=True, exist_ok=True)
 
-        # --- Extract ZIP safely ----------------------------------------------
-        file_count = 0
-        has_index  = False
+        if slug_dir.exists() and slug_dir != public_dir:
+            try:
+                if slug_dir.is_symlink():
+                    slug_dir.unlink()
+                else:
+                    shutil.rmtree(slug_dir)
+            except Exception:
+                pass
 
+        file_count = 0
         try:
             with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
                 for member in zf.infolist():
                     name = member.filename
-
-                    # Security: reject path traversal attempts
-                    if (
-                        ".." in name
-                        or name.startswith("/")
-                        or name.startswith("\\")
-                        or ":" in name          # Windows drive letters
-                    ):
-                        log.warning("Skipping suspicious path: %s", name)
+                    if (name.startswith("/") or ".." in name or
+                        name.startswith("\\") or ":" in name):
                         continue
 
-                    # Skip directories (extractall creates them automatically)
+                    ext = os.path.splitext(name)[1].lower()
+                    if ext in FORBIDDEN_EXTENSIONS:
+                        continue
+
+                    dest_file = (public_dir / name).resolve()
+                    if not str(dest_file).startswith(str(public_dir.resolve())):
+                        continue
+
                     if member.is_dir():
-                        continue
-
-                    # Extract to both source and public dirs
-                    zf.extract(member, user_dir)
-                    zf.extract(member, public_dir)
-                    file_count += 1
-
-                    if os.path.basename(name).lower() == "index.html":
-                        has_index = True
-
-        except zipfile.BadZipFile as exc:
-            shutil.rmtree(user_dir, ignore_errors=True)
-            shutil.rmtree(public_dir, ignore_errors=True)
-            self._err(422, f"Corrupt ZIP archive: {exc}")
-            return
-        except Exception as exc:
             shutil.rmtree(user_dir, ignore_errors=True)
             shutil.rmtree(public_dir, ignore_errors=True)
             log.exception("ZIP extraction failed")
@@ -412,9 +401,17 @@ class ReceiverHandler(BaseHTTPRequestHandler):
     # -----------------------------------------------------------------------
 
     def _serve_static(self, url_path: str) -> None:
-        prefix   = "/storage/sites/"
-        rel      = url_path[len(prefix):].lstrip("/")
-        parts    = rel.split("/", 1)
+        if url_path.startswith("/storage/sites/"):
+            prefix = "/storage/sites/"
+        elif url_path.startswith("/site/"):
+            prefix = "/site/"
+        elif url_path.startswith("/s/"):
+            prefix = "/s/"
+        else:
+            prefix = "/storage/sites/"
+
+        rel       = url_path[len(prefix):].lstrip("/")
+        parts     = rel.split("/", 1)
         site_uuid = parts[0]
         sub_path  = parts[1] if len(parts) > 1 and parts[1] else "index.html"
 
