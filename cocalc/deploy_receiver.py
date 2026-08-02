@@ -162,7 +162,9 @@ class ReceiverHandler(BaseHTTPRequestHandler):
                 return
 
         # --- Static file serving --------------------------------------------
-        if path.startswith("/storage/sites/"):
+        if (path.startswith("/storage/sites/") or
+                path.startswith("/site/") or
+                path.startswith("/s/")):
             self._serve_static(path)
             return
 
