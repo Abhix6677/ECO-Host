@@ -36,6 +36,11 @@ class CoCalcReceiverService
         $this->receiverUrl = $this->resolveReceiverUrl();
     }
 
+    public function getReceiverUrl(): string
+    {
+        return $this->receiverUrl;
+    }
+
     /**
      * Fetch the latest receiver URL from GitHub.
      * CoCalc pushes its tunnel URL to cocalc/live_url.txt on every startup.
@@ -53,6 +58,8 @@ class CoCalcReceiverService
                 $fresh = rtrim(trim($raw), '/');
                 if ($fresh !== $this->receiverUrl) {
                     Log::info("CoCalc: Auto-discovered new receiver URL from GitHub: {$fresh}");
+                    // Dynamically set Laravel config so everything uses fresh URL
+                    config(['services.cocalc.receiver_url' => $fresh]);
                 }
                 return $fresh;
             }

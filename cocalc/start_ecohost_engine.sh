@@ -74,6 +74,7 @@ echo "$TUNNEL_URL" > ~/ECO-Host/cocalc/live_url.txt
 cd ~/ECO-Host
 git add cocalc/live_url.txt
 git commit -m "[auto] Update CoCalc receiver URL: $TUNNEL_URL" > /dev/null 2>&1 || true
+git pull origin master --rebase > /dev/null 2>&1 || true
 git push origin master > /dev/null 2>&1 && echo "[$(date)] ✅ URL published to GitHub! EcoHost will auto-discover: $TUNNEL_URL" || echo "[$(date)] ⚠️ GitHub push failed, EcoHost may use stale URL"
 cd ~
 

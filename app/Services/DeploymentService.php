@@ -40,9 +40,10 @@ class DeploymentService
 
         try {
             $log = [];
+            $receiverUrl = $this->cocalcService->getReceiverUrl();
             $log[] = '[' . now()->format('H:i:s') . '] Deployment started: ' . $website->name;
             $log[] = '[' . now()->format('H:i:s') . '] Target: EcoHost Cloud Engine';
-            $log[] = '[' . now()->format('H:i:s') . '] Receiver: ' . config('services.cocalc.receiver_url');
+            $log[] = '[' . now()->format('H:i:s') . '] Receiver: ' . $receiverUrl;
 
             // ----------------------------------------------------------------
             // Step 1: Check local files or existing CoCalc deployment
@@ -65,7 +66,7 @@ class DeploymentService
                     throw new RuntimeException("CoCalc receiver is offline: " . ($health['error'] ?? 'Connection failed'));
                 }
 
-                $cocalcUrl = config('services.cocalc.receiver_url');
+                $cocalcUrl = $this->cocalcService->getReceiverUrl();
                 $liveUrl   = rtrim($cocalcUrl, '/') . '/site/' . $website->slug . '/';
 
                 $cocalcResult = [
