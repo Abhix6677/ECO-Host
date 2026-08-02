@@ -320,20 +320,21 @@ class ReceiverHandler(BaseHTTPRequestHandler):
 
         log.info("Extracted %d files → %s", file_count, public_dir)
 
-        # --- Build live URL --------------------------------------------------
+        clean_path = f"/site/{site_slug}/"
         if CLOUDFLARE_URL:
-            live_url = f"{CLOUDFLARE_URL}/storage/sites/{site_uuid}/"
+            live_url = f"{CLOUDFLARE_URL}{clean_path}"
         else:
             live_url = None
 
         response: dict = {
-            "status":     "success",
-            "message":    "Site deployed successfully on CoCalc Ubuntu.",
-            "site_uuid":  site_uuid,
-            "user_id":    user_id,
-            "file_count": file_count,
-            "cocalc_path":    str(public_dir),
-            "public_url_path": f"/storage/sites/{site_uuid}/",
+            "status":          "success",
+            "message":         "Site deployed successfully on CoCalc Ubuntu.",
+            "site_uuid":       site_uuid,
+            "site_slug":       site_slug,
+            "user_id":         user_id,
+            "file_count":      file_count,
+            "cocalc_path":     str(public_dir),
+            "public_url_path": clean_path,
         }
 
         if live_url:
